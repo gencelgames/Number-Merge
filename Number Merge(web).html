@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Number Merge</title>
+<style>
+:root{--bg:#f4f1ea;--panel:#d9d3c5;--cell:#c8c1b0;--text:#2b2a27;--muted:#6e6a5f;--btn:#2b2a27;--btnt:#f4f1ea;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17171a;--panel:#26262b;--cell:#323239;--text:#f1efe9;--muted:#9d9a92;--btn:#f1efe9;--btnt:#17171a}}
+:root[data-theme="dark"]{--bg:#17171a;--panel:#26262b;--cell:#323239;--text:#f1efe9;--muted:#9d9a92;--btn:#f1efe9;--btnt:#17171a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;justify-content:center;min-height:100vh;touch-action:none;user-select:none}
+.app{width:100%;max-width:440px;padding:16px}
+h1{margin:4px 0 12px;font-size:28px;letter-spacing:-.5px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--panel);border-radius:10px;padding:8px 4px;text-align:center}
+.stat small{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.stat b{font-size:18px}
+.goal{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:14px;color:var(--muted)}
+.bar{flex:1;height:8px;background:var(--panel);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:hsl(150,60%,45%);transition:width .2s}
+#board{position:relative;background:var(--panel);border-radius:14px;padding:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;aspect-ratio:1}
+.cell{border-radius:10px;background:var(--cell);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:clamp(20px,7vw,32px)}
+.cell.s{font-size:clamp(16px,5.5vw,26px)}.cell.xs{font-size:clamp(13px,4.2vw,20px)}
+.cell.pop{animation:pop .18s}
+@keyframes pop{0%{transform:scale(.6)}70%{transform:scale(1.12)}100%{transform:scale(1)}}
+.row{display:flex;gap:8px;margin-top:12px}
+button{flex:1;padding:12px;border:0;border-radius:10px;background:var(--btn);color:var(--btnt);font-size:15px;font-weight:600;cursor:pointer}
+button:disabled{opacity:.4}
+.hint{margin-top:10px;font-size:12px;color:var(--muted);text-align:center}
+#ov{position:absolute;inset:0;border-radius:14px;background:rgba(0,0,0,.65);color:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:16px}
+#ov h2{margin:0;font-size:26px}#ov p{margin:0}
+#ov button{flex:none;background:#fff;color:#111;padding:12px 24px}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>Number Merge</h1>
+<div class="stats">
+<div class="stat"><small>Level</small><b id="lv">1</b></div>
+<div class="stat"><small>Goal</small><b id="goal">8</b></div>
+<div class="stat"><small>Score</small><b id="sc">0</b></div>
+<div class="stat"><small>Best Lvl</small><b id="best">1</b></div>
+</div>
+<div class="goal"><span id="gtxt">Make the 8 tile</span><div class="bar"><i id="fill"></i></div></div>
+<div id="board"><div id="ov"></div></div>
+<div class="row"><button id="undo">Undo</button><button id="restart">Restart level</button></div>
+<div class="hint">Swipe or use arrow keys. Merge equal tiles to reach the goal. Levels never end, and higher numbers drop more often as you level up!</div>
+</div>
+<script>
+const N=4;let board,score,level,prev,over=false,best=1;
+try{best=+localStorage.getItem('nm_best')||1}catch(e){}
+const $=id=>document.getElementById(id);
+const goalFor=l=>Math.pow(2,l+2);
+function empty(){return board.map((v,i)=>v?-1:i).filter(i=>i>=0)}
+function spawn(){const e=empty();if(!e.length)return -1;const i=e[Math.random()*e.length|0];board[i]=dropValue();return i}
+function dropValue(){const p=Math.min(.7,.1+.05*level),cap=Math.max(4,goalFor(level)/4);let v=2;while(v*2<=cap&&Math.random()<p)v*=2;return v}
+function newLevel(keepScore){board=Array(16).fill(0);if(!keepScore)score=0;prev=null;over=false;spawn();spawn();spawn();render([])}
+function render(pops){
+ const b=$('board');[...b.querySelectorAll('.cell')].forEach(c=>c.remove());
+ board.forEach((v,i)=>{const d=document.createElement('div');d.className='cell'+(v>=1000?' s':'')+(v>=100000?' xs':'')+(pops.includes(i)?' pop':'');
+  if(v){d.textContent=v;d.style.background=`hsl(${(Math.log2(v)*37)%360},65%,48%)`}b.insertBefore(d,$('ov'));});
+ const g=goalFor(level),mx=Math.max(...board);
+ $('lv').textContent=level;$('goal').textContent=g;$('sc').textContent=score;$('best').textContent=best;
+ $('gtxt').textContent='Make the '+g+' tile';
+ $('fill').style.width=Math.min(100,mx?Math.log2(mx)/Math.log2(g)*100:0)+'%';
+ $('undo').disabled=!prev;
+}
+function slide(line){
+ const a=line.filter(x=>x),out=[];let gain=0,merged=[];
+ for(let i=0;i<a.length;i++){if(a[i]===a[i+1]){out.push(a[i]*2);gain+=a[i]*2;merged.push(out.length-1);i++}else out.push(a[i])}
+ while(out.length<N)out.push(0);return{out,gain,merged};
+}
+function move(dir){
+ if(over)return;
+ const snap={b:board.slice(),s:score};let moved=false,gain=0,pops=[];
+ for(let k=0;k<N;k++){
+  const idx=[];for(let j=0;j<N;j++){
+   idx.push(dir==='left'?k*N+j:dir==='right'?k*N+(N-1-j):dir==='up'?j*N+k:(N-1-j)*N+k);}
+  const r=slide(idx.map(i=>board[i]));
+  idx.forEach((bi,j)=>{if(board[bi]!==r.out[j])moved=true;board[bi]=r.out[j]});
+  gain+=r.gain;r.merged.forEach(j=>pops.push(idx[j]));
+ }
+ if(!moved)return;
+ prev=snap;score+=gain;const s=spawn();if(s>=0)pops.push(s);render(pops);
+ if(Math.max(...board)>=goalFor(level))return win();
+ if(!canMove())lose();
+}
+function canMove(){
+ if(empty().length)return true;
+ for(let i=0;i<16;i++){const r=i%N,c=i/N|0;if(r<N-1&&board[i]===board[i+1])return true;if(c<N-1&&board[i]===board[i+N])return true}
+ return false;
+}
+function overlay(h,p,t,fn){const o=$('ov');o.innerHTML=`<h2>${h}</h2><p>${p}</p><button>${t}</button>`;o.style.display='flex';o.querySelector('button').onclick=()=>{o.style.display='none';fn()}}
+function win(){over=true;score+=level*50;
+ if(level+1>best){best=level+1;try{localStorage.setItem('nm_best',best)}catch(e){}}
+ render([]);overlay('Level '+level+' clear!','Bonus +'+level*50+'. Next goal: '+goalFor(level+1),'Next level',()=>{level++;newLevel(true)})}
+function lose(){over=true;overlay('No moves left','Try this level again','Retry',()=>newLevel(false))}
+$('undo').onclick=()=>{if(prev&&!over){board=prev.b;score=prev.s;prev=null;render([])}};
+$('restart').onclick=()=>{$('ov').style.display='none';newLevel(false)};
+addEventListener('keydown',e=>{const m={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down'}[e.key];if(m){e.preventDefault();move(m)}});
+let sx,sy;
+addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+addEventListener('touchend',e=>{if(sx==null)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+ if(Math.max(Math.abs(dx),Math.abs(dy))<24)return;
+ move(Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up'));sx=null},{passive:true});
+level=1;score=0;newLevel(false);
+</script>
+</body>
+</html>
